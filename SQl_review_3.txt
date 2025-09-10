@@ -1,0 +1,122 @@
+-- 📘 SQL Assignment 5 Revision
+-- Dataset: European Soccer Database
+-- Purpose: Advanced SQL queries for soccer match analytics
+
+-- --------------------------------------------------------------------------------
+-- 🔹 Question 1: Country with Highest Home Win Percentage
+-- --------------------------------------------------------------------------------
+-- Objective: Identify the country with the highest percentage of home wins
+-- Output: country name, total matches played, home wins, home win percentage (rounded to 2 decimals)
+
+SELECT 
+    c.name AS country,
+    COUNT(*) AS total_matches,
+    COUNT(CASE WHEN m.home_team_goal > m.away_team_goal THEN 1 END) AS home_wins,
+    ROUND(AVG(CASE WHEN m.home_team_goal > m.away_team_goal THEN 1 ELSE 0 END) * 100, 2) AS home_win_percentage
+FROM match m
+JOIN country c ON m.country_id = c.id
+GROUP BY c.name
+ORDER BY home_win_percentage DESC
+LIMIT 1;
+
+
+-- --------------------------------------------------------------------------------
+-- 🔹 Question 2: Average Goals Scored Per Season and Month Comparison
+-- --------------------------------------------------------------------------------
+-- Objective: Calculate the average goals per match per season,
+-- and compare averages for matches played in May and July
+-- Output: season, overall avg goals, avg goals in July, avg goals in May, overall average goals across all seasons
+
+WITH averaged AS (
+    SELECT 
+        m.season,
+        ROUND(AVG(m.home_team_goal + m.away_team_goal), 2) AS avg_goals_per_match,
+        ROUND(AVG(CASE WHEN strftime('%m', m.date) = '07' THEN (m.home_team_goal + m.away_team_goal) END), 2) AS july_avg_goals,
+        ROUND(AVG(CASE WHEN strftime('%m', m.date) = '05' THEN (m.home_team_goal + m.away_team_goal) END), 2) AS may_avg_goals
+    FROM match m
+    GROUP BY m.season
+),
+overall_avg AS (
+    SELECT ROUND(AVG(home_team_goal + away_team_goal), 2) AS overall_avg_goals
+    FROM match
+)
+
+SELECT 
+    a.season, 
+    a.avg_goals_per_match, 
+    a.july_avg_goals,
+    a.may_avg_goals,
+    o.overall_avg_goals
+FROM averaged a
+CROSS JOIN overall_avg o;
+
+
+-- --------------------------------------------------------------------------------
+-- 🔹 Question 3a: Create Consolidated Match Table
+-- --------------------------------------------------------------------------------
+-- Objective: Create a simplified table to store match details for faster queries
+
+CREATE TABLE IF NOT EXISTS match_table (
+    match_date TEXT,
+    country_name TEXT,
+    home_team_name TEXT,
+    away_team_name TEXT,
+    home_team_goal INT,
+    away_team_goal INT
+);
+
+INSERT INTO match_table (match_date, country_name, home_team_name, away_team_name, home_team_goal, away_team_goal)
+SELECT 
+    m.date, 
+    c.name, 
+    h.team_long_name, 
+    a.team_long_name, 
+    m.home_team_goal, 
+    m.away_team_goal
+FROM match m
+JOIN country c ON m.country_id = c.id
+JOIN team h ON m.home_team_api_id = h.team_api_id
+JOIN team a ON m.away_team_api_id = a.team_api_id;
+
+
+-- --------------------------------------------------------------------------------
+-- 🔹 Question 3b: Matches with 10 or More Total Goals
+-- --------------------------------------------------------------------------------
+-- Objective: Find high-scoring matches with total goals >= 10
+
+SELECT *
+FROM match_table
+WHERE (home_team_goal + away_team_goal) >= 10
+ORDER BY (home_team_goal + away_team_goal) DESC;
+
+
+-- --------------------------------------------------------------------------------
+-- 🔹 Question 3c: Total Goals Scored by Each Team per Season
+-- --------------------------------------------------------------------------------
+-- Objective: Aggregate total goals scored by each team across all seasons (home + away)
+
+SELECT 
+    team_name,
+    season,
+    SUM(goal) AS total_goals
+FROM (
+    SELECT 
+        t.team_long_name AS team_name, 
+        m.season, 
+        SUM(m.home_team_goal) AS goal
+    FROM match m
+    JOIN team t ON m.home_team_api_id = t.team_api_id
+    GROUP BY m.season, team_name
+
+    UNION ALL
+
+    SELECT 
+        t.team_long_name AS team_name,
+        m.season,
+        SUM(m.away_team_goal) AS goal
+    FROM match m
+    JOIN team t ON m.away_team_api_id = t.team_api_id
+    GROUP BY m.season, team_name
+) AS combined_goals
+GROUP BY season, team_name
+ORDER BY season, total_goals DESC;

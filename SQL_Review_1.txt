@@ -1,0 +1,184 @@
+--  SQL Summer Review Assignment
+-- A self-directed review of relational database concepts and SQL query building.
+
+--  SQL Execution Order (Reference)
+-- FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY
+
+
+-- Question 1: How many tables are in this database?
+
+-- View all available tables in the current database
+SELECT name
+FROM sqlite_master
+WHERE type = 'table';
+
+-- Manually inspecting individual tables
+SELECT * FROM country;
+SELECT * FROM season_dates;
+SELECT * FROM match;
+SELECT * FROM medals;
+SELECT * FROM player;
+SELECT * FROM player_attributes;
+SELECT * FROM team;
+SELECT * FROM team_attributes;
+
+-- Count total teams and team attributes for reference
+SELECT COUNT(team_api_id) FROM team;
+SELECT COUNT(team_api_id) FROM team_attributes;
+
+
+--  Question 2: Identify types of relationships between tables
+
+-- 1: One-to-One
+-- Each record in one table corresponds to exactly one record in another.
+-- Example: player.id ↔ player_attributes.id, team.id ↔ team_attributes.id
+
+-- 2: One-to-Many
+-- One record in Table A is linked to many records in Table B.
+-- Example: country.id ↔ match.country_id
+
+-- 3: Many-to-One
+-- Multiple records in Table A are linked to a single record in Table B.
+-- Example: match.country_id ↔ country.id
+
+-- 4: Many-to-Many
+-- Complex — not explored in this review.
+
+-- Example query to check for one-to-many relationship:
+SELECT player_api_id, COUNT(*)
+FROM player_attributes
+GROUP BY player_api_id
+ORDER BY COUNT(*) DESC;
+
+-- Interpretation:
+-- If a single player_api_id appears more than once, it's a one-to-many relationship.
+
+
+--  Question 3: Basic Dataset Metrics
+
+-- Total number of players
+SELECT COUNT(id) FROM player;
+
+-- Total number of teams
+SELECT COUNT(id) FROM team;
+
+-- Number of countries in the dataset
+SELECT c.name, l.name
+FROM country AS c
+JOIN league AS l ON c.id = l.country_id;
+
+-- Seasons available
+SELECT season
+FROM match
+GROUP BY season;
+
+
+-- Question 4: Is there a home-field advantage?
+
+SELECT c.name, 
+       ROUND(AVG(CASE 
+            WHEN m.home_team_goal > m.away_team_goal THEN 1
+            ELSE 0
+       END) * 100, 2) AS home_win_percentage
+FROM match AS m
+JOIN country AS c ON c.id = m.country_id
+GROUP BY m.country_id
+ORDER BY home_win_percentage DESC;
+
+-- This query calculates the percentage of matches won by the home team, grouped by country.
+
+
+-- Question 5A: Has the "Moneyball" effect increased goals over seasons?
+
+SELECT season, 
+       ROUND(AVG(home_team_goal + away_team_goal), 2) AS avg_goals,
+       MAX(home_team_goal + away_team_goal) AS max_goals
+FROM match
+GROUP BY season;
+
+-- Observing average and peak goals per season to detect any trends.
+
+
+-- Question 5B: Does weather (by month) affect scoring?
+
+SELECT strftime('%m', m.date) AS month,
+       ROUND(AVG(m.home_team_goal + m.away_team_goal), 2) AS avg_monthly_goals
+FROM match AS m
+GROUP BY month
+ORDER BY month;
+
+-- Analyzing average goals scored each month to look for possible seasonal/weather effects.
+
+
+--Question 6A: Who is the best overall player per season?
+
+-- Attempt 1: Using exact match on date — not reliable due to sparsity
+SELECT m.season, p.player_name
+FROM player_attributes AS pa
+JOIN match AS m ON pa.date = m.date
+JOIN player AS p ON p.player_api_id = pa.player_api_id
+GROUP BY m.season
+HAVING pa.overall_rating = MAX(pa.overall_rating);
+
+-- Attempt 2: Using season date range from season_dates
+SELECT ss.season, p.player_name
+FROM season_dates AS ss
+LEFT JOIN player_attributes AS pa
+    ON pa.date BETWEEN ss."min(date)" AND ss."max(date)"
+LEFT JOIN player AS p
+    ON p.player_api_id = pa.player_api_id
+GROUP BY ss.season
+HAVING pa.overall_rating = MAX(pa.overall_rating);
+
+-- NOTE: Still some issues with accuracy here — revisit this query for better season-player mapping.
+
+
+-- Question 6B: Who is the best goalkeeper per season?
+
+SELECT s.season, p.player_name
+FROM season_dates AS s
+LEFT JOIN player_attributes AS pa
+    ON pa.date BETWEEN s."min(date)" AND s."max(date)"
+LEFT JOIN player AS p
+    ON p.player_api_id = pa.player_api_id
+GROUP BY s.season
+HAVING ROUND((pa.gk_diving + pa.gk_handling + pa.gk_kicking + 
+              pa.gk_positioning + pa.gk_reflexes) / 5, 2) = 
+       MAX(ROUND((pa.gk_diving + pa.gk_handling + pa.gk_kicking + 
+                  pa.gk_positioning + pa.gk_reflexes) / 5, 2));
+
+-- NOTE: Logic here is complex and might still have accuracy issues.
+-- Further refinement required — possibly rank per season then filter by top 1.
+
+
+-- Question 7: At what age do players peak?
+
+SELECT strftime('%Y', pa.date) - strftime('%Y', p.birthday) AS age,
+       MAX(pa.overall_rating) AS max_rating,
+       ROUND(AVG(pa.overall_rating), 2) AS avg_rating
+FROM player AS p
+JOIN player_attributes AS pa ON p.player_api_id = pa.player_api_id
+WHERE pa.date != '2007-02-22 00:00:00'  -- excluding incomplete entries
+GROUP BY age
+ORDER BY age DESC;
+
+-- Analyzes average and peak ratings per player age to estimate prime years.
+
+-------------------------------------------------------------------------------------
+
+--  Final Notes:
+
+-- Key takeaways:
+-- - Understanding SQL execution order is crucial.
+-- - Writing down the query objective before coding helped significantly.
+-- - Breaking problems down into smaller sub-questions improves accuracy and efficiency.
+-- - SQL debugging is often about narrowing down and simplifying.
+
+-- Topics to revisit:
+-- - Best player per season logic (JOINs and date mapping)
+-- - Window functions or ranking may improve accuracy in future versions
+
+-- Goal:
+-- Continue practicing and refining SQL logic through projects and datasets.
+
+-------------------------------------------------------------------------------------
