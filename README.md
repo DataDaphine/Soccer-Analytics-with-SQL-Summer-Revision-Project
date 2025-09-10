@@ -1,6 +1,6 @@
 # 📚 SQL Summer Review – Football Match Analysis
 
-This project contains a self-directed SQL revision based on coursework from a university database class. Over Summer 2025, I revisited assignments and explored deeper data analysis using SQL queries on a football match dataset.
+This project is a self-directed SQL revision completed during Summer 2025, revisiting coursework from a university-level database class. The dataset consists of European football (soccer) matches, and the aim was to deepen my understanding of SQL through exploratory and analytical queries.
 
 The goal was to strengthen my understanding of:
 - SQL query logic and execution order
@@ -19,7 +19,8 @@ The goal was to strengthen my understanding of:
 - Investigating the "Moneyball" effect
 - Determining peak player performance age
 - Evaluating goalkeepers by season
-- Using `GROUP BY`, `HAVING`, `JOIN`, `CASE`, and date functions
+- Mastering `GROUP BY`, `HAVING`, `CASE`, window functions, and date-based filtering
+ 
 
 ---
 
@@ -40,7 +41,7 @@ The goal was to strengthen my understanding of:
 
 ## 📌 Notes
 
-This project is for educational and self-improvement purposes. It documents both correct and in-progress queries, along with observations and strategies for solving SQL problems.
+This project is intended for educational and personal development purposes. Some queries include exploratory attempts, in-progress ideas, and partial solutions, all of which are annotated to reflect reasoning and approach.
 
 ---
 
